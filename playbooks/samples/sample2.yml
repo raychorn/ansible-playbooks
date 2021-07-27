@@ -1,0 +1,13 @@
+- name: Transfer and execute a script.
+  hosts: all
+  user: root
+  vars:
+    directory: /root/@1
+
+  tasks:
+
+  - command: "ls {{directory}}"
+    register: dir_out
+
+  - debug: var={{item}}
+    with_items: dir_out.stdout_lines

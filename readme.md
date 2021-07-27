@@ -23,9 +23,19 @@ Once upon a time, many years ago, I began working with Python and then I wanted 
 
 It took me about 15ms to get ansible installed on all 4 of my computers and one of them is a Raspberry PI.  Big deal!
 
+```
+ansible-playbook sample1.yml
+```
+
+```
+ansible all -m ls -la /root
+```
+
+```
 ansible all -m ping
+```
 
-crontab
-
-@reboot ssh-add ~/.ssh/id_rsa_desktop-JJ95ENL_no_passphrase &>/dev/null
-
+```
+> cat ~/.ssh/config
+IdentityFile ~/.ssh/id_rsa_desktop-JJ95ENL_no_passphrase
+```

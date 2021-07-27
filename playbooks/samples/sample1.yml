@@ -2,12 +2,22 @@
   hosts: all
   user: root
   tasks:
-     - name: Transfer the script
-       copy: src=./scripts/do-something.sh dest=/root/@1/do-something.sh
+    - name: Creates directory
+      file:
+        path: /root/@1
+        state: directory
+        owner: root
+        group: root
+        mode: 0775
 
-     - name: chmod +x
-       local_action: command chmod +x /root/@1/do-something.sh
+    - name: Copy and Execute the script 
+      script: ./scripts/do-something.sh
 
-     - name: Execute the script
-       local_action: command /root/@1/do-something.sh
+    - name: get contents of file
+      command: cat /tmp/do-something.log
+      register: filename
+      become: true
 
+    - name: viewing the contents
+      debug:
+        msg: "{{filename.stdout}}"

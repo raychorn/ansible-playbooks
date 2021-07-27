@@ -10,7 +10,7 @@
         group: root
         mode: 0775
 
-    - name: Copy and Execute the script 
+    - name: Copy and Execute the script
       script: ./scripts/do-something.sh
 
     - name: get contents of file
@@ -20,4 +20,4 @@
 
     - name: viewing the contents
       debug:
-        msg: "{{filename.stdout}}"
+        msg: "{{ filename.stdout }}"

@@ -1,2 +1,13 @@
-- name: Run a script with arguments (free form)
-  ansible.builtin.script: /some/local/script.sh --some-argument 1234
+- name: Transfer and execute a script.
+  hosts: all
+  user: root
+  tasks:
+     - name: Transfer the script
+       copy: src=./scripts/do-something.sh dest=/root/@1/do-something.sh
+
+     - name: chmod +x
+       local_action: command chmod +x /root/@1/do-something.sh
+
+     - name: Execute the script
+       local_action: command /root/@1/do-something.sh
+

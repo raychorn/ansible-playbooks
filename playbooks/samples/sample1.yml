@@ -1,0 +1,2 @@
+- name: Run a script with arguments (free form)
+  ansible.builtin.script: /some/local/script.sh --some-argument 1234

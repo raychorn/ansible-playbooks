@@ -39,3 +39,7 @@ ansible all -m ping
 > cat ~/.ssh/config
 IdentityFile ~/.ssh/id_rsa_desktop-JJ95ENL_no_passphrase
 ```
+
+```
+ansible-playbook check_endpoint.yml
+```

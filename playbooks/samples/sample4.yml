@@ -1,0 +1,15 @@
+- hosts: all
+  gather_facts: false
+
+  tasks:
+
+  - name: which_python
+    shell: "$(which python3.9) --version"
+    register:
+      netstat_result
+    changed_when: false
+
+
+  - name: print_result
+    with_items:
+    - "{{ which_python.results }}"

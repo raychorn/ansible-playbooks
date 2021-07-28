@@ -6,8 +6,8 @@
 
   tasks:
 
-  - command: "ls {{directory}}"
-    register: dir_out
+    - command: "ls {{directory}}"
+      register: dir_out
 
-  - debug: var={{item}}
-    with_items: dir_out.stdout_lines
+    - debug: var={{item}}
+      with_items: dir_out.stdout_lines

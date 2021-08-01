@@ -9,7 +9,7 @@ else
     exit 1
 fi
 
-STUFF=$(ansible-playbook /srv/__projects/ansible-playbooks/playbooks/samples/query_endpoints.yml | grep .web-service.org)
+STUFF=$(ansible-playbook /srv/__projects/ansible-playbooks/playbooks/samples/query_endpoints.yml) #  | grep .web-service.org
 
 echo "STUFF=$STUFF"
 
@@ -31,4 +31,4 @@ if [ -z $CID ]; then
 fi
 
 echo "CID=$CID"
-docker exec -it $CID /usr/local/bin/pihole restartdns
+docker exec -it $(docker ps -qf "name=pihole") /usr/local/bin/pihole restartdns

@@ -17,23 +17,35 @@ touch $PYFILE
 MONGOETC=
 echo "1" >> $LOGFILE
 if [ "$HOSTNAME" == "server1" ]; then
-    echo "HOSTNAME=$HOSTNAME" >> $LOGFILE >> $LOGFILE
-    docker exec -d $(docker ps -qf "name=mongo1") chown mongodb:mongodb /mongocerts/keyfile.txt >> $LOGFILE
-    docker exec -d $(docker ps -qf "name=mongo1") chmod 400 /mongocerts/keyfile.txt >> $LOGFILE
+    echo "HOSTNAME=$HOSTNAME" >> $LOGFILE
+    echo "[1]" >> $LOGFILE
+    df -h >> $LOGFILE
+    echo "[2]" >> $LOGFILE
+    lsblk >> $LOGFILE
+    echo "[3]" >> $LOGFILE
+    free -m -h >> $LOGFILE
 fi
 
 echo "2" >> $LOGFILE
 if [ "$HOSTNAME" == "server-jj95enl" ]; then
-    echo "HOSTNAME=$HOSTNAME" >> $LOGFILE >> $LOGFILE
-    docker exec -d $(docker ps -qf "name=mongo2") chown mongodb:mongodb /mongocerts/keyfile.txt >> $LOGFILE
-    docker exec -d $(docker ps -qf "name=mongo2") chmod 400 /mongocerts/keyfile.txt >> $LOGFILE
+    echo "HOSTNAME=$HOSTNAME" >> $LOGFILE
+    echo "[1]" >> $LOGFILE
+    df -h >> $LOGFILE
+    echo "[2]" >> $LOGFILE
+    lsblk >> $LOGFILE
+    echo "[3]" >> $LOGFILE
+    free -m -h >> $LOGFILE
 fi
 
 echo "3" >> $LOGFILE
 if [ "$HOSTNAME" == "tp01-2066" ]; then
     echo "HOSTNAME=$HOSTNAME" >> $LOGFILE
-    docker exec -d $(docker ps -qf "name=mongo3") chown mongodb:mongodb /mongocerts/keyfile.txt >> $LOGFILE
-    docker exec -d $(docker ps -qf "name=mongo3") chmod 400 /mongocerts/keyfile.txt >> $LOGFILE
+    echo "[1]" >> $LOGFILE
+    df -h >> $LOGFILE
+    echo "[2]" >> $LOGFILE
+    lsblk >> $LOGFILE
+    echo "[3]" >> $LOGFILE
+    free -m -h >> $LOGFILE
 fi
 
 cat << PYEOF > $PYFILE
@@ -59,7 +71,7 @@ fi
 TEST=$($PIP list | grep docker)
 
 if [ -z "$TEST" ]; then
-    echo $PIP install docker
+    echo ""
 fi
 
 $PY $PYFILE >> $LOGFILE

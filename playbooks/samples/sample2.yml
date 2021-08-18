@@ -2,7 +2,7 @@
   hosts: all
   user: root
   vars:
-    directory: /root/@1
+    directory: /root
 
   tasks:
 
@@ -11,3 +11,4 @@
 
     - debug: var={{item}}
       with_items: dir_out.stdout_lines
+

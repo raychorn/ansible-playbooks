@@ -1,0 +1,15 @@
+- name: Transfer and execute a script.
+  hosts: all
+  user: root
+  tasks:
+    - name: Copy and Execute the script
+      script: ./scripts/verify_mongo_config.sh
+
+    - name: get contents of file
+      command: cat /tmp/verify_mongo_config.log
+      register: filename
+      become: true
+
+    - name: viewing the contents
+      debug:
+        msg: "{{ filename.stdout_lines }}"

@@ -14,6 +14,9 @@ fi
 touch $LOGFILE
 touch $PYFILE
 
+#apt-get update -y >> $LOGFILE
+#apt-get upgrade -y >> $LOGFILE
+
 PY=$(which python3.9)
 echo "PY=$PY" >> $LOGFILE
 
@@ -71,8 +74,12 @@ if [ -z "$PIP_TEST1" ]; then
     exit
 fi
 
-cd ~
-$VIRTUALENV -p $PY .venv
+if [ -f ~/.venv/bin/activate ]; then
+    echo "virtualenv exists." >> $LOGFILE
+else
+    echo "virtualenv does not exist so making it." >> $LOGFILE
+    cd ~ && $VIRTUALENV -p $PY .venv
+fi
 
 if [ -f ~/.venv/bin/activate ]; then
     echo "virtualenv created." >> $LOGFILE
@@ -180,33 +187,52 @@ print('current_ip_addrs: {}'.format(current_ip_addrs))
 
 hosts_file = '/etc/hosts'
 
+changes_made_file = '/tmp/etc_hosts_changes'
+if (os.path.exists(changes_made_file)):
+    os.remove(changes_made_file)
+
+with open(changes_made_file, 'w') as fOut2:
+    print('no', file=fOut2)
+
 if (host_ip != current_ip_addrs):
     print('WARNING: {} is not configured correctly.'.format(hosts_file))
 
-print('BEGIN: {}'.format(fpath))
-with open(fpath, 'r') as fIn:
-    fOut = open(hosts_file, 'w')
-    for l in fIn:
-        l = l.strip()
-        if (l.find('IP_ADDRESS') > -1):
-            l = l.replace('IP_ADDRESS', current_ip_addrs)
-        if (l.find('FQ_HOSTNAME') > -1):
-            l = l.replace('FQ_HOSTNAME', '{}.web-service.org'.format(host_name))
-        if (l.find('HOSTNAME') > -1):
-            l = l.replace('HOSTNAME', host_name)
-        print(l, file=fOut)
-    fOut.flush()
-    fOut.close()
-print('END!!! {}'.format(fpath))
+    print('BEGIN: {}'.format(fpath))
+    with open(fpath, 'r') as fIn:
+        fOut = open(hosts_file, 'w')
+        fOut2 = open(changes_made_file, 'w')
+        for l in fIn:
+            l = l.strip()
+            if (l.find('IP_ADDRESS') > -1):
+                l = l.replace('IP_ADDRESS', current_ip_addrs)
+            if (l.find('FQ_HOSTNAME') > -1):
+                l = l.replace('FQ_HOSTNAME', '{}.web-service.org'.format(host_name))
+            if (l.find('HOSTNAME') > -1):
+                l = l.replace('HOSTNAME', host_name)
+            print(l, file=fOut)
+        print('yes', file=fOut2)
+        fOut2.flush()
+        fOut2.close()
+        fOut.flush()
+        fOut.close()
+    print('END!!! {}'.format(fpath))
 
 print('Python done.')
 EOF
 
 $PY $PYFILE /tmp/hosts.txt >> $LOGFILE
 
-echo "Restarting networking" >> $LOGFILE
-/etc/init.d/networking restart
-echo "Restarted networking" >> $LOGFILE
+CHANGES_MADE_TEST=$(cat /tmp/etc_hosts_changes)
+
+if [ "$CHANGES_MADE_TEST" == "yes" ]; then
+    echo "Changes made to /etc/hosts" >> $LOGFILE
+
+    echo "Restarting networking" >> $LOGFILE
+    /etc/init.d/networking restart
+    echo "Restarted networking" >> $LOGFILE
+else
+    echo "No changes made to /etc/hosts" >> $LOGFILE
+fi
 
 exit
 

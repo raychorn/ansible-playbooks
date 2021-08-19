@@ -17,6 +17,32 @@ touch $PYFILE
 #apt-get update -y >> $LOGFILE
 #apt-get upgrade -y >> $LOGFILE
 
+# bash function to test if directory is empty
+function isEmpty {
+    # $1 is the directory
+    # $2 is the variable to return
+    local  __resultvar=$2
+    local  return_val=-1
+
+    if [ ! -d "$1" ]; then
+        #echo "Directory $1 does not exist"
+        return_val=0
+    fi
+    if [ "$(ls -A $1)" ]; then
+        #echo "Directory $1 is not empty"
+        return_val=False
+    else
+        #echo "Directory $1 is empty"
+        return_val=True
+    fi
+
+    if [[ "$__resultvar" ]]; then
+        eval $__resultvar="'$return_val'"
+    else
+        echo "$return_val"
+    fi
+}
+
 PY=$(which python3.9)
 echo "PY=$PY" >> $LOGFILE
 
@@ -34,7 +60,7 @@ echo "(1) PIP_VERSION=$PIP_VERSION" >> $LOGFILE
 BASEPY=$(basename $PY)
 PIP_TEST1=$($PIP --version | grep $BASEPY)
 echo "PIP_TEST1=$PIP_TEST1" >> $LOGFILE
-echo "*** BASEPY=$BASEPY" >> $LOGFILE
+echo "BASEPY=$BASEPY" >> $LOGFILE
 
 if [ -z "$PIP_TEST1" ]; then
     echo "Cannot find PIP for $PY so install it." >> $LOGFILE
@@ -91,10 +117,10 @@ fi
 . ~/.venv/bin/activate
 
 PY=$(which python3.9)
-echo "(***) PY=$PY" >> $LOGFILE
+echo "PY=$PY" >> $LOGFILE
 
 PIP=$(which pip3)
-echo "(***) PIP=$PIP" >> $LOGFILE
+echo "PIP=$PIP" >> $LOGFILE
 
 PIP_NETIFACES_TEST1=$($PIP list | grep netifaces)
 echo "(1) PIP_NETIFACES_TEST1=$PIP_NETIFACES_TEST1" >> $LOGFILE
@@ -120,6 +146,13 @@ echo "HOSTNAME=$HOSTNAME" >> $LOGFILE
 
 PING=$(which ping)
 echo "PING=$PING" >> $LOGFILE
+
+APT_TEST=$(apt list --installed nfs-common | grep nfs-common)
+
+if [ -z "$APT_TEST" ]; then
+    echo "Cannot find nfs-common so installing it." >> $LOGFILE
+    apt install nfs-common -y >> $LOGFILE
+fi
 
 HOSTS=/etc/hosts
 echo "BEGIN: $HOSTS" >> $LOGFILE
@@ -233,6 +266,124 @@ if [ "$CHANGES_MADE_TEST" == "yes" ]; then
 else
     echo "No changes made to /etc/hosts" >> $LOGFILE
 fi
+
+SRV=/srv
+
+if [ ! -d $SRV ]; then
+    echo "Creating $SRV" >> $LOGFILE
+    mkdir -p $SRV
+fi
+
+ISEMPTY_TEST=-1
+isEmpty $SRV ISEMPTY_TEST
+echo "(***) ISEMPTY_TEST -> $ISEMPTY_TEST" >> $LOGFILE
+
+if [ "$ISEMPTY_TEST" == "0" ]; then
+    echo "Creating $SRV" >> $LOGFILE
+    mkdir -p $SRV
+fi
+
+if [ "$ISEMPTY_TEST" == "True" ]; then
+    echo "$SRV is empty" >> $LOGFILE
+    echo "(***) HOSTNAME=$HOSTNAME" >> $LOGFILE
+    NFS_TEST=$(mount | grep nfs | grep "/mnt/user/docker_share")
+    if [ "$HOSTNAME." == "docker1" ]; then
+        echo "Connect to NFS ($HOSTNAME)" >> $LOGFILE
+        if [ -z "$NFS_TEST" ]; then
+            echo "Mounting NFS" >> $LOGFILE
+            mount -t nfs 10.0.0.164:/mnt/user/docker_share /srv
+            echo "Mounted NFS" >> $LOGFILE
+        fi
+        FSTAB_TEST=$(cat /etc/fstab | grep /mnt/user/docker_share)
+        if [ -z "$FSTAB_TEST" ]; then
+            echo "Adding /mnt/user/docker_share to /etc/fstab" >> $LOGFILE
+            echo "10.0.0.164:/mnt/user/docker_share /srv nfs defaults 0 0" >> /etc/fstab
+            echo "Added /mnt/user/docker_share to /etc/fstab" >> $LOGFILE
+        fi
+    fi
+    if [ "$HOSTNAME." == "docker2" ]; then
+        echo "Connect to NFS ($HOSTNAME)" >> $LOGFILE
+        if [ -z "$NFS_TEST" ]; then
+            echo "Mounting NFS" >> $LOGFILE
+            mount -t nfs 10.0.0.177:/mnt/user/docker_share /srv
+            echo "Mounted NFS" >> $LOGFILE
+        fi
+        FSTAB_TEST=$(cat /etc/fstab | grep /mnt/user/docker_share)
+        if [ -z "$FSTAB_TEST" ]; then
+            echo "Adding /mnt/user/docker_share to /etc/fstab" >> $LOGFILE
+            echo "10.0.0.177:/mnt/user/docker_share /srv nfs defaults 0 0" >> /etc/fstab
+            echo "Added /mnt/user/docker_share to /etc/fstab" >> $LOGFILE
+        fi
+    fi
+fi
+
+echo "-------------------------------------------------------------------" >> $LOGFILE
+
+echo "BEGIN: /srv" >> $LOGFILE
+ls -la /srv >> $LOGFILE
+echo "END!!! /srv" >> $LOGFILE
+
+echo "-------------------------------------------------------------------" >> $LOGFILE
+
+echo "BEGIN: /mnt" >> $LOGFILE
+ls -la /mnt >> $LOGFILE
+echo "END!!! /mnt" >> $LOGFILE
+
+echo "====================================================================" >> $LOGFILE
+
+ROOT_SCRIPTS=/root/scripts
+
+if [ ! -d $ROOT_SCRIPTS ]; then
+    echo "Creating $ROOT_SCRIPTS" >> $LOGFILE
+    mkdir -p $ROOT_SCRIPTS
+fi
+
+NFSFIXER_SCRIPT=$ROOT_SCRIPTS/nfsfixer.sh
+
+if [ ! -f $NFSFIXER_SCRIPT ]; then
+    echo "Creating $NFSFIXER_SCRIPT" >> $LOGFILE
+cat << NFSFIXEREOF > $NFSFIXER_SCRIPT
+#! /bin/bash
+
+list=$(mount | grep nfs)
+while read -r line; do
+    TARGET=$(echo $line | awk '{print $1}')
+    MOUNT=$(echo $line | awk '{print $3}')
+    STALE_TEST=$(ls $MOUNT |& grep "Stale file handle")
+    if [ ! -z "$STALE_TEST" ]; then
+        umount -l $MOUNT
+        mount -t nfs $TARGET $MOUNT
+    fi
+done <<< "$list"
+NFSFIXEREOF
+fi
+
+cat << CRONTABEOF > /tmp/crontab.txt
+# m h  dom mon dow   command
+0 0-23 * * * docker system prune -a -f
+0 0-23 * * * docker system prune --volumes -f
+CRONTABEOF
+
+if [ "$HOSTNAME" == "tp01-2066" ]; then
+    echo "BEGIN: /tmp/crontab.txt for $HOSTNAME" >> $LOGFILE
+    echo "@reboot sleep 60 && /root/mount_raid_array_restart_docker.sh" >> /tmp/crontab.txt
+    echo "END!!! /tmp/crontab.txt for $HOSTNAME" >> $LOGFILE
+fi
+
+if [ -f $NFSFIXER_SCRIPT ]; then
+    echo "BEGIN: $NFSFIXER_SCRIPT" >> $LOGFILE
+    chmod +x $NFSFIXER_SCRIPT
+    echo "0-59 0-23 * * * /root/scripts/nfsfixer.sh" >> /tmp/crontab.txt
+    echo "END!!! $NFSFIXER_SCRIPT" >> $LOGFILE
+fi
+
+cat /tmp/crontab.txt | crontab -
+
+echo "-------------------------------------------------------------------" >> $LOGFILE
+
+echo "BEGIN: crontab -l" >> $LOGFILE
+crontab -l >> $LOGFILE
+echo "END!!! crontab -l" >> $LOGFILE
 
 exit
 

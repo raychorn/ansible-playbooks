@@ -287,7 +287,7 @@ if [ "$ISEMPTY_TEST" == "True" ]; then
     echo "$SRV is empty" >> $LOGFILE
     echo "(***) HOSTNAME=$HOSTNAME" >> $LOGFILE
     NFS_TEST=$(mount | grep nfs | grep "/mnt/user/docker_share")
-    if [ "$HOSTNAME." == "docker1" ]; then
+    if [ "$HOSTNAME." == "docker1." ]; then
         echo "Connect to NFS ($HOSTNAME)" >> $LOGFILE
         if [ -z "$NFS_TEST" ]; then
             echo "Mounting NFS" >> $LOGFILE
@@ -301,7 +301,7 @@ if [ "$ISEMPTY_TEST" == "True" ]; then
             echo "Added /mnt/user/docker_share to /etc/fstab" >> $LOGFILE
         fi
     fi
-    if [ "$HOSTNAME." == "docker2" ]; then
+    if [ "$HOSTNAME." == "docker2." ]; then
         echo "Connect to NFS ($HOSTNAME)" >> $LOGFILE
         if [ -z "$NFS_TEST" ]; then
             echo "Mounting NFS" >> $LOGFILE
@@ -340,21 +340,27 @@ fi
 
 NFSFIXER_SCRIPT=$ROOT_SCRIPTS/nfsfixer.sh
 
+if [ -f $NFSFIXER_SCRIPT ]; then
+    #echo "Removing $NFSFIXER_SCRIPT" >> $LOGFILE
+    echo "$NFSFIXER_SCRIPT exists."
+    #rm -f $NFSFIXER_SCRIPT
+fi
+
 if [ ! -f $NFSFIXER_SCRIPT ]; then
     echo "Creating $NFSFIXER_SCRIPT" >> $LOGFILE
 cat << NFSFIXEREOF > $NFSFIXER_SCRIPT
 #! /bin/bash
 
-list=$(mount | grep nfs)
+list=\$(mount | grep nfs)
 while read -r line; do
-    TARGET=$(echo $line | awk '{print $1}')
-    MOUNT=$(echo $line | awk '{print $3}')
-    STALE_TEST=$(ls $MOUNT |& grep "Stale file handle")
-    if [ ! -z "$STALE_TEST" ]; then
-        umount -l $MOUNT
-        mount -t nfs $TARGET $MOUNT
+    TARGET=\$(echo \$line | awk '{print \$1}')
+    MOUNT=\$(echo \$line | awk '{print \$3}')
+    STALE_TEST=\$(ls \$MOUNT |& grep "Stale file handle")
+    if [ ! -z "\$STALE_TEST" ]; then
+        umount -l \$MOUNT
+        mount -t nfs \$TARGET \$MOUNT
     fi
-done <<< "$list"
+done <<< "\$list"
 NFSFIXEREOF
 fi
 

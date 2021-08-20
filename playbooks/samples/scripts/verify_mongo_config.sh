@@ -154,6 +154,13 @@ if [ -z "$APT_TEST" ]; then
     apt install nfs-common -y >> $LOGFILE
 fi
 
+APT_TEST2=$(apt list --installed jq | grep jq)
+
+if [ -z "$APT_TEST2" ]; then
+    echo "Cannot find jq so installing it." >> $LOGFILE
+    apt install jq -y >> $LOGFILE
+fi
+
 HOSTS=/etc/hosts
 echo "BEGIN: $HOSTS" >> $LOGFILE
 cat $HOSTS >> $LOGFILE
@@ -384,6 +391,190 @@ if [ -f $NFSFIXER_SCRIPT ]; then
 fi
 
 cat /tmp/crontab.txt | crontab -
+
+MONGOCERTS=/srv/mongocerts
+
+if [ ! -d $MONGOCERTS ]; then
+    echo "Creating $MONGOCERTS" >> $LOGFILE
+    mkdir -p $MONGOCERTS
+fi
+
+ISEMPTY_TEST2=-1
+isEmpty $MONGOCERTS ISEMPTY_TEST2
+echo "(***) ISEMPTY_TEST2 -> $ISEMPTY_TEST2" >> $LOGFILE
+
+if [ "$ISEMPTY_TEST2" == "False" ]; then
+    echo "Emptying $MONGOCERTS" >> $LOGFILE
+    rm -R -f $MONGOCERTS/*
+fi
+
+cat << MONGOCERTSEOF > $MONGOCERTS/keyfile.txt
+orCIxyoAfMv6ebOq3HUmoWJH//WGmR/YP68q4hrcTDSsUk8i898q2eYnk0Zyc8mQ
+2ki6mzGpOg7ebFXntX82i4ggp05RN6G9dDbcM3iDeeFtUjVRxCMthOgVUYjDZyOk
+o3B0ZWuccHi1UkTMyiHxomVz6pXsNGtUnD8ZnOBwyktYosuvTpYxraqbt7W6bBnD
+EXHo/5WKgDTobbny1YbLpVKZ0WHyALj3Pv9xAQvb8jk+lUHgMWZifKkU+zD+DTHJ
+AzNzpBRjSy50AXoe4Te0FXSPfmhQ2QJpyBIX73tkBCOkwAXpt2sXJH7r/KxnwoNI
+uakk/50cE9Sf0uYIXYIVDYrOWY/mekeaPNUnYMrvVz5FvpHLwy1pvlZp7e7n8C2r
+Bog2afYoZHv9hp3hd4vBABV82St3gj2VZyBLvnJSkP8OyKM/+JIrmY1v/R2oz4GD
+Q6Sj3x1PxoSc+ctM/t1Ah23rgNpJjBnQwEOMpZt6kYWJTmba7lxR2QF71JMrX6Z1
+vE7L5LFbHHnVE8/eZLrzNZGz05BD8AuwYFATIO3ST0i1GvjPkXzkJl0GyECxqRYg
+gJx5MrH/7r/JpMPVUljxibbAQCt0rag+ZpFJIN/f1a7gd0J2yKgkPNBRZytkBN5l
+h98vOQs6XwHy1KGAl/TJ704uyBACccIwovr//jEjUA4r79GqzE/fg90iyZQ63G1o
+nzmt9apOyJA01UzIDcYeV7O1kzuBPMSif/emaXIub8xMBSnXp0fUTZn/RGZ3T7qH
+njRUoSCc9RgQLbPBV2lFGAPk+PyktdvSlMQW3IbTmm8XPFFSqTAyfbsz6IKAvo37
+WCSd1tC1ot627yL/GeTE30noP3DGdg+6ebsm2i3AG0Wg23uVtlO+mxbeGQHS7Ps6
+aLESkzWB1o+xL6U/hH1iKIHsKJ1+AKqlGmmmtzBxYIzlSAQn6XtwkOUR6VrKJzDf
+cM+63oqQgHs42mH/b/kNJbSIMOHqMF3yXTKVkTW4Rgu8u03KJFe8lNHGNZyqmmMj
+MONGOCERTSEOF
+
+if [ -f $MONGOCERTS/keyfile.txt ]; then
+    echo "$MONGOCERTS/keyfile.txt exists" >> $LOGFILE
+    #chmod 600 $MONGOCERTS/keyfile.txt
+    #echo "END!!! $MONGOCERTS/keyfile.txt" >> $LOGFILE
+fi
+
+MONGOCERTS_VOLUME=$(docker volume ls | grep mongocerts | awk '{print $2}' | head -n 1)
+
+if [ -z "$MONGOCERTS_VOLUME" ]; then
+    echo "Creating $MONGOCERTS_VOLUME" >> $LOGFILE
+    MONGOCERTS_VOLUME=mongocerts
+    docker volume create -d local -o o=bind -o type=volume -o device=$MONGOCERTS --name $MONGOCERTS_VOLUME
+fi
+
+MONGOCERTS_VOLUME_DIR=$(docker volume inspect $MONGOCERTS_VOLUME | jq -r '.[0].Mountpoint')
+
+if [ ! -d $MONGOCERTS_VOLUME_DIR ]; then
+    echo "ERROR: $MONGOCERTS_VOLUME_DIR is missing." >> $LOGFILE
+    exit 1
+fi
+
+LOCAL_SRV_DIR=/srv
+if [ "$HOSTNAME." == "tp01-2066." ]; then
+    LOCAL_SRV_DIR=$(ls -la /srv | awk '{print $11}' | head -n 1)
+fi
+
+NUMAVAIL=$(df -h $LOCAL_SRV_DIR | awk '{print $4}' | tail -1 )
+
+IS_LOCAL_SRV_AVAIL=$($PY -c "x='$NUMAVAIL'; xn=''.join([ch for ch in x if (str(ch).isdigit())]); units=x.replace(xn, ''); xn=int(xn); m=0.0 if (units not in ['M', 'G', 'T']) else (1/1000000) if (units == 'M') else (1/1000) if (units == 'G') else 1.0; print('1' if (xn*m) > 0.0001 else 0);")
+
+if [ "$IS_LOCAL_SRV_AVAIL" == "0" ]; then
+    echo "WARNING: $LOCAL_SRV_DIR may be out of space." >> $LOGFILE
+    exit 1
+fi
+
+MONGODATA=/srv/mongodata
+MONGODATA_VOLUME=$(docker volume ls | grep mongodata | awk '{print $2}' | head -n 1)
+
+if [ -z "$MONGODATA_VOLUME" ]; then
+    echo "Creating $MONGODATA_VOLUME" >> $LOGFILE
+    if [ ! -d $MONGODATA ]; then
+        echo "Creating $MONGODATA" >> $LOGFILE
+        mkdir -p $MONGODATA
+    fi
+    MONGODATA_VOLUME=mongodata
+    docker volume create -d local -o o=bind -o type=volume -o device=$MONGODATA --name $MONGODATA_VOLUME
+fi
+
+
+MONGOCONF=/srv/mongoconf
+MONGOCONF_VOLUME=$(docker volume ls | grep mongoconf | awk '{print $2}' | head -n 1)
+
+if [ -z "$MONGOCONF_VOLUME" ]; then
+    echo "Creating $MONGOCONF_VOLUME" >> $LOGFILE
+    if [ ! -d $MONGOCONF ]; then
+        echo "Creating $MONGOCONF" >> $LOGFILE
+        mkdir -p $MONGOCONF
+    fi
+    MONGOCONF_VOLUME=mongoconf
+    docker volume create -d local -o o=bind -o type=volume -o device=$MONGOCONF --name $MONGOCONF_VOLUME
+fi
+
+MONGOCONF_VOLUME_DIR=$(docker volume inspect $MONGOCONF_VOLUME | jq -r '.[0].Mountpoint')
+
+if [ ! -d $MONGOCONF_VOLUME_DIR ]; then
+    echo "ERROR: $MONGOCONF_VOLUME_DIR is missing." >> $LOGFILE
+    exit 1
+fi
+
+cat << MONGOCONFEOF > $MONGOCONF/mongod.conf
+# Where and how to store data.
+storage:
+  dbPath: /data/db
+  journal:
+    enabled: true
+#  engine:
+#  mmapv1:
+#  wiredTiger:
+#    engineConfig:
+#      cacheSizeGB: 4
+
+
+# where to write logging data.
+systemLog:
+  destination: file
+  logAppend: true
+  path: /var/log/mongodb/mongod.log
+
+# network interfaces
+net:
+  port: 27017
+  bindIp: 0.0.0.0
+  ipv6: false
+
+# how the process runs
+processManagement:
+  timeZoneInfo: /usr/share/zoneinfo
+
+security:
+  keyFile: /mongocerts/keyfile.txt
+  transitionToAuth: true
+
+#operationProfiling:
+
+replication:
+   replSetName: rs0
+
+#sharding:
+
+## Enterprise-Only Options:
+
+#auditLog:
+
+#snmp:
+MONGOCONFEOF
+
+if [ -f $MONGOCONF/mongod.conf ]; then
+    echo "$MONGOCONF/mongod.conf exists" >> $LOGFILE
+fi
+
+
+MONGOCONFIG=/srv/mongoconfigdb
+MONGOCONFIG_VOLUME=$(docker volume ls | grep mongoconfigdb | awk '{print $2}' | head -n 1)
+
+if [ -z "$MONGOCONFIG_VOLUME" ]; then
+    echo "Creating $MONGOCONFIG_VOLUME" >> $LOGFILE
+    if [ ! -d $MONGOCONFIG ]; then
+        echo "Creating $MONGOCONFIG" >> $LOGFILE
+        mkdir -p $MONGOCONFIG
+    fi
+    MONGOCONFIG_VOLUME=mongoconfigdb
+    docker volume create -d local -o o=bind -o type=volume -o device=$MONGOCONFIG --name $MONGOCONFIG_VOLUME
+fi
+
+
+MONGOLOGS=/srv/mongologs
+MONGOLOGS_VOLUME=$(docker volume ls | grep mongologs | awk '{print $2}' | head -n 1)
+
+if [ -z "$MONGOLOGS_VOLUME" ]; then
+    echo "Creating $MONGOLOGS_VOLUME" >> $LOGFILE
+    if [ ! -d $MONGOLOGS ]; then
+        echo "Creating $MONGOLOGS" >> $LOGFILE
+        mkdir -p $MONGOLOGS
+    fi
+    MONGOCONFIG_VOLUME=mongologs
+    docker volume create -d local -o o=bind -o type=volume -o device=$MONGOLOGS --name $MONGOLOGS_VOLUME
+fi
+
 
 echo "-------------------------------------------------------------------" >> $LOGFILE
 

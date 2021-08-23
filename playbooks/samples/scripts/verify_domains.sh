@@ -326,6 +326,18 @@ fi
 
 echo "-------------------------------------------------------------------" >> $LOGFILE
 
+echo "BEGIN: /srv" >> $LOGFILE
+ls -la /srv >> $LOGFILE
+echo "END!!! /srv" >> $LOGFILE
+
+echo "-------------------------------------------------------------------" >> $LOGFILE
+
+echo "BEGIN: /mnt" >> $LOGFILE
+ls -la /mnt >> $LOGFILE
+echo "END!!! /mnt" >> $LOGFILE
+
+echo "====================================================================" >> $LOGFILE
+
 ROOT_SCRIPTS=/root/scripts
 
 if [ ! -d $ROOT_SCRIPTS ]; then
@@ -391,10 +403,10 @@ ISEMPTY_TEST2=-1
 isEmpty $MONGOCERTS ISEMPTY_TEST2
 echo "(***) ISEMPTY_TEST2 -> $ISEMPTY_TEST2" >> $LOGFILE
 
-#if [ "$ISEMPTY_TEST2" == "False" ]; then
-#    echo "Emptying $MONGOCERTS" >> $LOGFILE
-#    rm -R -f $MONGOCERTS/*
-#fi
+if [ "$ISEMPTY_TEST2" == "False" ]; then
+    echo "Emptying $MONGOCERTS" >> $LOGFILE
+    rm -R -f $MONGOCERTS/*
+fi
 
 cat << MONGOCERTSEOF > $MONGOCERTS/keyfile.txt
 orCIxyoAfMv6ebOq3HUmoWJH//WGmR/YP68q4hrcTDSsUk8i898q2eYnk0Zyc8mQ
@@ -443,22 +455,14 @@ fi
 
 NUMAVAIL=$(df -h $LOCAL_SRV_DIR | awk '{print $4}' | tail -1 )
 
-IS_LOCAL_SRV_AVAIL=$($PY -c "x='$NUMAVAIL';  xn=''.join([ch for ch in x if (str(ch).isdigit() or (ch == '.'))]); units=x.replace(xn, ''); xn=eval(xn); m=0.0 if (units not in ['M', 'G', 'T']) else (1/1000000) if (units == 'M') else (1/1000) if (units == 'G') else 1.0; print('1' if (xn*m) > 0.0001 else 0);")
-
-echo "-------------------------------------------------------------------" >> $LOGFILE
-
-echo "BEGIN: /srv" >> $LOGFILE
-ls -la /srv >> $LOGFILE
-echo "END!!! /srv" >> $LOGFILE
+IS_LOCAL_SRV_AVAIL=$($PY -c "x='$NUMAVAIL'; xn=''.join([ch for ch in x if (str(ch).isdigit())]); units=x.replace(xn, ''); xn=int(xn); m=0.0 if (units not in ['M', 'G', 'T']) else (1/1000000) if (units == 'M') else (1/1000) if (units == 'G') else 1.0; print('1' if (xn*m) > 0.0001 else 0);")
 
 if [ "$IS_LOCAL_SRV_AVAIL" == "0" ]; then
     echo "WARNING: $LOCAL_SRV_DIR may be out of space." >> $LOGFILE
     #exit 1
 fi
-echo "-------------------------------------------------------------------" >> $LOGFILE
 
 MONGODATA=/srv/mongodata
-echo "BEGIN: MONGODATA: $MONGODATA" >> $LOGFILE
 MONGODATA_VOLUME=$(docker volume ls | grep mongodata | awk '{print $2}' | head -n 1)
 
 if [ -z "$MONGODATA_VOLUME" ]; then
@@ -468,16 +472,11 @@ if [ -z "$MONGODATA_VOLUME" ]; then
         mkdir -p $MONGODATA
     fi
     MONGODATA_VOLUME=mongodata
-    docker volume create -d local -o o=bind -o type=volume -o device=$MONGODATA --name $MONGODATA_VOLUME >> $LOGFILE
-else
-    echo "MONGODATA: $MONGODATA_VOLUME exists" >> $LOGFILE
+    docker volume create -d local -o o=bind -o type=volume -o device=$MONGODATA --name $MONGODATA_VOLUME
 fi
-echo "END!!! MONGODATA: $MONGODATA" >> $LOGFILE
 
-echo "-------------------------------------------------------------------" >> $LOGFILE
 
 MONGOCONF=/srv/mongoconf
-echo "BEGIN: MONGOCONF: $MONGOCONF" >> $LOGFILE
 MONGOCONF_VOLUME=$(docker volume ls | grep mongoconf | awk '{print $2}' | head -n 1)
 
 if [ -z "$MONGOCONF_VOLUME" ]; then
@@ -487,17 +486,14 @@ if [ -z "$MONGOCONF_VOLUME" ]; then
         mkdir -p $MONGOCONF
     fi
     MONGOCONF_VOLUME=mongoconf
-    docker volume create -d local -o o=bind -o type=volume -o device=$MONGOCONF --name $MONGOCONF_VOLUME >> $LOGFILE
-else
-    echo "MONGOCONF: $MONGOCONF_VOLUME exists" >> $LOGFILE
+    docker volume create -d local -o o=bind -o type=volume -o device=$MONGOCONF --name $MONGOCONF_VOLUME
 fi
 
 MONGOCONF_VOLUME_DIR=$(docker volume inspect $MONGOCONF_VOLUME | jq -r '.[0].Mountpoint')
 
 if [ ! -d $MONGOCONF_VOLUME_DIR ]; then
     echo "ERROR: $MONGOCONF_VOLUME_DIR is missing." >> $LOGFILE
-else
-    echo "$MONGOCONF_VOLUME_DIR exists" >> $LOGFILE
+    #exit 1
 fi
 
 cat << MONGOCONFEOF > $MONGOCONF/mongod.conf
@@ -549,21 +545,10 @@ MONGOCONFEOF
 
 if [ -f $MONGOCONF/mongod.conf ]; then
     echo "$MONGOCONF/mongod.conf exists" >> $LOGFILE
-else
-    echo "ERROR: $MONGOCONF/mongod.conf is missing." >> $LOGFILE
-
-    if [ -f $MONGOCONF_VOLUME_DIR/mongod.conf ]; then
-        echo "$MONGOCONF_VOLUME_DIR/mongod.conf exists" >> $LOGFILE
-    else
-        echo "ERROR: $MONGOCONF_VOLUME_DIR/mongod.conf is missing." >> $LOGFILE
-    fi
 fi
-echo "END!!! $MONGOCONF" >> $LOGFILE
 
-echo "-------------------------------------------------------------------" >> $LOGFILE
 
 MONGOCONFIG=/srv/mongoconfigdb
-echo "BEGIN: MONGOCONFIG: $MONGOCONFIG" >> $LOGFILE
 MONGOCONFIG_VOLUME=$(docker volume ls | grep mongoconfigdb | awk '{print $2}' | head -n 1)
 
 if [ -z "$MONGOCONFIG_VOLUME" ]; then
@@ -573,75 +558,23 @@ if [ -z "$MONGOCONFIG_VOLUME" ]; then
         mkdir -p $MONGOCONFIG
     fi
     MONGOCONFIG_VOLUME=mongoconfigdb
-    docker volume create -d local -o o=bind -o type=volume -o device=$MONGOCONFIG --name $MONGOCONFIG_VOLUME >> $LOGFILE
-else
-    echo "MONGOCONFIG: $MONGOCONFIG_VOLUME exists" >> $LOGFILE
+    docker volume create -d local -o o=bind -o type=volume -o device=$MONGOCONFIG --name $MONGOCONFIG_VOLUME
 fi
-echo "END!!! MONGOCONFIG: $MONGOCONFIG" >> $LOGFILE
 
-echo "-------------------------------------------------------------------" >> $LOGFILE
 
 MONGOLOGS=/srv/mongologs
-echo "(***) BEGIN: MONGOLOGS: $MONGOLOGS" >> $LOGFILE
 MONGOLOGS_VOLUME=$(docker volume ls | grep mongologs | awk '{print $2}' | head -n 1)
-echo "(***) MONGOLOGS_VOLUME: $MONGOLOGS_VOLUME" >> $LOGFILE
 
 if [ -z "$MONGOLOGS_VOLUME" ]; then
-    echo "Creating MONGOLOGS_VOLUME: $MONGOLOGS_VOLUME" >> $LOGFILE
+    echo "Creating $MONGOLOGS_VOLUME" >> $LOGFILE
     if [ ! -d $MONGOLOGS ]; then
-        echo "Creating MONGOLOGS: $MONGOLOGS" >> $LOGFILE
+        echo "Creating $MONGOLOGS" >> $LOGFILE
         mkdir -p $MONGOLOGS
     fi
     MONGOCONFIG_VOLUME=mongologs
-    docker volume create -d local -o o=bind -o type=volume -o device=$MONGOLOGS --name $MONGOLOGS_VOLUME >> $LOGFILE
-else
-    echo "MONGOLOGS: $MONGOLOGS_VOLUME exists" >> $LOGFILE
-fi
-echo "(***) END!!! MONGOLOGS: $MONGOLOGS" >> $LOGFILE
-
-echo "-------------------------------------------------------------------" >> $LOGFILE
-
-if [ "$HOSTNAME." != "tp01-2066." ]; then
-    echo "BEGIN: /mnt" >> $LOGFILE
-    ls -la /mnt >> $LOGFILE
-    echo "END!!! /mnt" >> $LOGFILE
+    docker volume create -d local -o o=bind -o type=volume -o device=$MONGOLOGS --name $MONGOLOGS_VOLUME
 fi
 
-echo "-------------------------------------------------------------------" >> $LOGFILE
-
-echo "BEGIN: docker volume ls" >> $LOGFILE
-docker volume ls >> $LOGFILE
-echo "END!!! docker volume ls" >> $LOGFILE
-
-echo "-------------------------------------------------------------------" >> $LOGFILE
-
-echo "BEGIN: MONGOCERTS -> $MONGOCERTS -> $MONGOCERTS_VOLUME -> $MONGOCERTS_VOLUME_DIR" >> $LOGFILE
-ls -la $MONGOCERTS >> $LOGFILE
-echo "END!!! MONGOCERTS" >> $LOGFILE
-
-echo "-------------------------------------------------------------------" >> $LOGFILE
-
-echo "BEGIN: MONGODATA -> $MONGODATA -> $MONGODATA_VOLUME -> $MONGODATA_VOLUME_DIR" >> $LOGFILE
-ls -la $MONGODATA >> $LOGFILE
-echo "END!!! MONGODATA" >> $LOGFILE
-
-echo "-------------------------------------------------------------------" >> $LOGFILE
-
-echo "BEGIN: MONGOCONF -> $MONGOCONF -> $MONGOCONF_VOLUME -> $MONGOCONF_VOLUME_DIR" >> $LOGFILE
-ls -la $MONGOCONF >> $LOGFILE
-echo "END!!! MONGOCONF" >> $LOGFILE
-
-echo "-------------------------------------------------------------------" >> $LOGFILE
-
-echo "BEGIN: MONGOCONFIG -> $MONGOCONFIG -> $MONGOCONFIG_VOLUME -> $MONGOCONFIG_VOLUME_DIR" >> $LOGFILE
-ls -la $MONGOCONFIG >> $LOGFILE
-echo "END!!! MONGOCONFIG" >> $LOGFILE
-
-echo "-------------------------------------------------------------------" >> $LOGFILE
-
-echo "BEGIN: MONGOLOGS -> $MONGOLOGS -> $MONGOLOGS_VOLUME -> $MONGOLOGS_VOLUME_DIR" >> $LOGFILE
-ls -la $MONGOLOGS >> $LOGFILE
-echo "END!!! MONGOLOGS" >> $LOGFILE
 
 echo "-------------------------------------------------------------------" >> $LOGFILE
 
@@ -649,4 +582,71 @@ echo "BEGIN: crontab -l" >> $LOGFILE
 crontab -l >> $LOGFILE
 echo "END!!! crontab -l" >> $LOGFILE
 
-echo "Ansible job done." >> $LOGFILE
+exit
+
+DOMAIN=docker1.web-service.org
+TEST=$(ping $DOMAIN -c 3 | grep "3 received" | grep "0% packet loss")
+if [ -z "$TEST" ]; then
+    echo "ERROR: $DOMAIN not found so cannot continue." >> $LOGFILE
+    exit 1
+fi
+echo "$DOMAIN=$TEST" >> $LOGFILE
+
+DOMAIN=docker2.web-service.org
+TEST=$(ping $DOMAIN -c 3 | grep "3 received" | grep "0% packet loss")
+if [ -z "$TEST" ]; then
+    echo "ERROR: $DOMAIN not found so cannot continue." >> $LOGFILE
+    exit 1
+fi
+echo "$DOMAIN=$TEST" >> $LOGFILE
+
+DOMAIN=docker1-10.web-service.org
+TEST=$(ping $DOMAIN -c 3 | grep "3 received" | grep "0% packet loss")
+if [ -z "$TEST" ]; then
+    echo "ERROR: $DOMAIN not found so cannot continue." >> $LOGFILE
+    exit 1
+fi
+
+DOMAIN=docker2-10.web-service.org
+TEST=$(ping $DOMAIN -c 3 | grep "3 received" | grep "0% packet loss")
+if [ -z "$TEST" ]; then
+    echo "ERROR: $DOMAIN not found so cannot continue." >> $LOGFILE
+    exit 1
+fi
+
+DOMAIN=tp01-2066.web-service.org
+TEST=$(ping $DOMAIN -c 3 | grep "3 received" | grep "0% packet loss")
+if [ -z "$TEST" ]; then
+    echo "ERROR: $DOMAIN not found so cannot continue." >> $LOGFILE
+    exit 1
+fi
+
+DOMAIN=server1.web-service.org
+TEST=$(ping $DOMAIN -c 3 | grep "3 received" | grep "0% packet loss")
+if [ -z "$TEST" ]; then
+    echo "ERROR: $DOMAIN not found so cannot continue." >> $LOGFILE
+    exit 1
+fi
+
+DOMAIN=controller.web-service.org
+TEST=$(ping $DOMAIN -c 3 | grep "3 received" | grep "0% packet loss")
+if [ -z "$TEST" ]; then
+    echo "ERROR: $DOMAIN not found so cannot continue." >> $LOGFILE
+    exit 1
+fi
+
+DOMAIN=tower.web-service.org
+TEST=$(ping $DOMAIN -c 3 | grep "3 received" | grep "0% packet loss")
+if [ -z "$TEST" ]; then
+    echo "ERROR: $DOMAIN not found so cannot continue." >> $LOGFILE
+    exit 1
+fi
+
+DOMAIN=z820.web-service.org
+TEST=$(ping $DOMAIN -c 3 | grep "3 received" | grep "0% packet loss")
+if [ -z "$TEST" ]; then
+    echo "ERROR: $DOMAIN not found so cannot continue." >> $LOGFILE
+    exit 1
+fi
+
+echo "All tests passed." >> $LOGFILE

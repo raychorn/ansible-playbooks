@@ -1,0 +1,16 @@
+- name: Transfer and execute a script.
+  hosts: all
+  user: raychorn
+  gather_facts: no
+  tasks:
+    - name: Copy and Execute the script
+      script: ./get_mongo_data.sh
+
+    - name: get contents of file
+      command: cat /tmp/get_mongo_data.log
+      register: filename
+      become: true
+
+    - name: viewing the contents
+      debug:
+        msg: "{{ filename.stdout_lines }}"
